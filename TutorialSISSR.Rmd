@@ -1,0 +1,153 @@
+---
+title: "Tutorial"
+author: "Vought"
+date: "November 16, 2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+##SISS Tutorial for November 17, 2021
+##Lance Vought
+
+
+R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r}
+#install.packages('ggplot2')
+#install.packages('wooldridge')
+#install.packages('dplyr')
+#install.packages('tidyverse')
+#install.packages('sf')
+#install.packages('leaflet')
+#install.packages('spData')
+#install.packages('rcolorbrewer')
+#install.packages('ggthemes')
+#install.packages('sp')
+#install.packages('GSODR')
+#install.packages('viridis')
+#devtools::install_github("ropensci/USAboundaries")
+#devtools::install_github("ropensci/USAboundariesData")
+
+#If necessary to install these packages, remove the pound sign.
+```
+
+Next, you want to put these packages to use.  When you open your RStudio, you can either call the packages you need in code, or right click on the box (assuming they are installed) in the Packages tab on the right-hand side of your R-Studio menu.
+
+```{r}
+library(ggplot2)
+library(wooldridge)
+library(dplyr)
+library(tidyverse)
+library(sf)
+library(leaflet)
+library(spData)
+library(RColorBrewer)
+library(ggthemes)
+library(sp)
+library(viridis)
+library(GSODR)
+library(USAboundaries)
+library(USAboundariesData)
+```
+
+You may need these later.  For now, there are already a few sample data sets built into R for working through.
+
+The one you may see default for is the 'cars' dataset.
+
+```{r}
+class(cars)
+
+summary(cars)
+
+summary(cars$dist)
+```
+
+The chunk of code above identifies what type of data the cars data set is.  Data can be a number of different forms: Vectors, Lists, Matrices, Arrays, Factors, Data Frames and more.
+
+In this case, cars is  data frame.
+
+The next lines of code above summarize the data within the cars data frame. The last line allows for you to see the summary statistics specific to the variable speed within the data set cars.
+
+If we want to plot the data, we can create a scatter plot using the plot function.
+
+plot(x, y, main, xlab, ylab, xlim, ylim).  X is the variable used for X, Y is the variable used for Y, xlab is the label for the X axis, ylab is the label for the Y axis, xlim is the min and max values for the x axis,  ylim is the min and max values for the y axis.  Strings need to be in "" or '' (i.e. labels, words, sentences), and the min,max values need to be in vector form c(min,max).
+
+```{r}
+plot(x= cars$speed, y = cars$dist, main = "Relationship between Speed and Distance", xlab = "Speed", ylab= "Distance", xlim = c(4,25), ylim = c(2,120))
+```
+
+I got ahead of myself.
+
+We need to announce ourselves to the world!
+
+```{r}
+
+a <- "Hello World!"
+
+print(a)
+```
+
+The <- symbol means equal to in R.  This is our way of defining an object.  We can see what type of data it is by identifying its class.  This is considered a character object.
+
+```{r}
+class(a)
+```
+
+Another neat tool in data analysis that you may use is that you can convert different ways in reporting data.  We can count the number of characters in a string, we can choose to round off numbers.  
+
+```{r}
+b <- "The Cleveland Browns are going to win Super Bowl LVI."
+
+nchar(b)
+
+result <- format(23.123456789, digits = 4)
+print(result)
+
+#Note that digits is including those to the left of the decimal as well.
+```
+
+Now let's try some map generation.  This is using the USAboundaries package.
+
+```{r}
+oh <- USAboundaries::us_states(resolution = "high", states = "OH")
+oh_co <- USAboundaries::us_counties(resolution = "high", states = "OH")
+
+plot(st_geometry(oh))
+plot(st_geometry(oh_co))
+```
+
+Creating maps of New England, compare county boundaries from current to the 1800s.
+```{r}
+if (require(USAboundariesData) && require(sf)) {
+contemporary_us <- us_counties()
+historical_us <- us_counties("1820-07-04")
+contemporary_ne <- us_counties(states = c("Massachusetts", "Vermont", "Maine",
+"New Hampshire", "Rhode Island",
+"Connecticut"))
+historical_ne <- us_counties("1803-04-28",
+states = c("Massachusetts", "Vermont", "Maine",
+"New Hampshire", "Rhode Island",
+"Connecticut"),
+resolution = "high")
+plot(st_geometry(contemporary_ne), col="darkgreen", border="white")
+plot(st_geometry(historical_ne), col="navyblue", border="Red")}
+```
+
+Creating a map of the Ohio congressional districts (for now)
+```{r}
+if (require(USAboundariesData) && require(sf)) {
+us_congressional <- us_congressional()
+oh_congressional <- us_congressional(states = "Ohio", resolution = "high")
+plot(st_geometry(oh_congressional), col="Yellow", border="Blue", lwd=1.5)
+}
+```
+
+Change the colors for the interior (col) and the border (border), and change the thickness of the lines (lwd) to see how they change.  Enter the code colors() to see all 657 options in plot.
+
+Also, try to create a map of Michigan.  How do you think the code will change?  Note this is only due to the package we are using.  This not a default feature of R.
