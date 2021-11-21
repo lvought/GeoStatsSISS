@@ -1,0 +1,82 @@
+---
+title: "SpatialEconLab"
+author: "Vought"
+date: "November 15, 2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+## If necessary to install packages
+## install.packages("maptools", dependencies = TRUE)
+## install.packages("spdep", dependencies = TRUE)
+## install.packages("leaflet", dependencies = TRUE)
+## install.packages("RColorBrewer", dependencies = TRUE)
+
+```{r}
+library(spdep)
+library(maptools)
+library(sf)
+```
+
+##using sf instead, so it is easier
+
+Download shapefiles to import into R at the following link: http://www.econ.uiuc.edu/~lab/workshop/foreclosures/.
+
+Download the following:
+Main file: foreclosures.shp
+Index file: foreclosures.shx
+dBASE table: foreclosures.dbf
+
+Move them into a folder within your R project.  Then use setwd to pull from that folder and read in the foreclosures shapefile.
+
+```{r}
+
+setwd("C:/Users/lvoug/Documents/GeoStatsSISS/foreclosures")
+chi.poly <- st_read('foreclosures.shp')
+```
+
+```{r}
+class(chi.poly)
+
+#data frame
+```
+
+```{r}
+summary(chi.poly$violent)
+```
+
+## violent crime in Chicago summary statistics
+
+```{r}
+plot(chi.poly)
+
+#makes plot images of all variables in chi.poly
+```
+
+```{r}
+##install.packages('leaflet')
+
+library(leaflet)
+
+leaflet(chi.poly) %>%
+  addPolygons(stroke = FALSE, fillOpacity = 0.5, smoothFactor = 0.5) %>%
+  addTiles() #adds a map tile, the default is OpenStreetMap
+
+require(RColorBrewer)
+
+pal <- colorQuantile(
+  palette  = "OrRd",
+  domain = chi.poly$violent)
+
+map <- leaflet(chi.poly)
+
+map %>%
+  addPolygons(stroke = FALSE, smoothFactor = 0.2, fillOpacity = 1,
+              color = ~pal(violent)) %>% addTiles()
+```
+
