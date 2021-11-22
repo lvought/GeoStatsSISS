@@ -6,7 +6,8 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+
 ```
 
 ## R Markdown
@@ -18,7 +19,6 @@ knitr::opts_chunk$set(echo = TRUE)
 ## install.packages("RColorBrewer", dependencies = TRUE)
 
 ```{r}
-library(spdep)
 library(maptools)
 library(sf)
 ```
@@ -53,7 +53,7 @@ summary(chi.poly$violent)
 ## violent crime in Chicago summary statistics
 
 ```{r}
-plot(chi.poly)
+plot(chi.poly, max.plot= 16)
 
 #makes plot images of all variables in chi.poly
 ```
@@ -78,5 +78,45 @@ map <- leaflet(chi.poly)
 map %>%
   addPolygons(stroke = FALSE, smoothFactor = 0.2, fillOpacity = 1,
               color = ~pal(violent)) %>% addTiles()
+```
+
+We can take the data from our shapefile and do statistical analysis with it too.  
+
+
+We can start by taking a standard OLS regression by looking at the effect of unemployment and percent of mortgages in the area being  foreclosed.
+#OLS
+
+
+```{r}
+chi.ols<-lm(chi.poly$violent~chi.poly$est_fcs_rt+chi.poly$bls_unemp, data=chi.poly$data)
+
+summary(chi.ols)
+```
+
+Interpret the coefficients.  Is there a potential issue with using OLS in spatial analysis?
+
+#Identifying Spatial Dependence/Autocorrelation
+
+We can use the spdep package to estimate spatial dependence using the queen criterion of contiguity.  If we use queen=TRUE, then it will use queen criterion.  If we use queen=FALSE, we will have rook criterion.
+
+```{r}
+library(magick)
+image_url <- "https://i.stack.imgur.com/CWIHi.jpg"
+pic <- image_read(image_url)
+print(pic)
+```
+
+
+```{r}
+library(spdep)
+list.queen<-poly2nb(chi.poly, queen=TRUE)
+W<-nb2listw(list.queen, style="W", zero.policy=TRUE)
+W
+```
+
+We can plot our spatial autocorrelation on our polygon.
+
+```{r}
+plot(W,chi.poly$geometry)
 ```
 
