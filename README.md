@@ -1,6 +1,5 @@
 # GeoStatsSISS
 
-<<<<<<< HEAD
 =======
 Wednesday Tutorial
 https://raw.githack.com/lvought/GeoStatsSISS/main/TutorialSISSR.html
