@@ -10,15 +10,21 @@ knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
 
 ```
 
-## R Markdown
+##SISS Lab for Monday, November 22, 2021
+#Lance Vought
 
-## If necessary to install packages
-## install.packages("maptools", dependencies = TRUE)
-## install.packages("spdep", dependencies = TRUE)
-## install.packages("leaflet", dependencies = TRUE)
-## install.packages("RColorBrewer", dependencies = TRUE)
+This lab will allow for us to work with spatial data, shapefiles, create interactive maps, and work with spatial econometrics with the data from our shapefile.
+
+First, if necessary, install any needed packages.  If they are already installed in RStudio, then call them using the library command.
 
 ```{r}
+# If necessary to install packages, remove the # symbol
+# install.packages("sf")
+# install.packages("maptools", dependencies = TRUE)
+# install.packages("spdep", dependencies = TRUE)
+# install.packages("leaflet", dependencies = TRUE)
+# install.packages("RColorBrewer", dependencies = TRUE)
+
 library(maptools)
 library(sf)
 ```
@@ -83,7 +89,16 @@ map %>%
 We can take the data from our shapefile and do statistical analysis with it too.  
 
 
-We can start by taking a standard OLS regression by looking at the effect of unemployment and percent of mortgages in the area being  foreclosed.
+We can start by taking a standard OLS regression by looking at the effect of unemployment and percent of mortgages in the area being foreclosed on violence in Chicago.
+
+est_fcs_rt = the percentage of total homes in the census tract that are foreclosed
+bls_unemp = the unemployment rate as estimated by the Bureau of Labor Statistics in June 2008
+violent = number of violent crimes reported between Jan. 2007 through December 2008
+
+To run a standard OLS regression (in this case multiple linear regression since we have more than one explanatory variable), we use the lm command in R.
+
+The dependent variable goes on the left hand side inside a (, and a ~ separates the dependent from the independent variables.  If you have more than one independent/explanatory variable, separate them with a +. The data is the data included in our polygon shapefile, chi.poly.
+
 #OLS
 
 
@@ -106,6 +121,9 @@ pic <- image_read(image_url)
 print(pic)
 ```
 
+Queen criterion looks at polygons in all directions adjacent, while rook criterion only looks directly in front of or to the side.  See image above.
+
+If we believe there is spatial autocorrelation in our data, we can determine the extent of it by assigning weights to the autocorrelation using our contiguity.
 
 ```{r}
 library(spdep)
@@ -113,10 +131,153 @@ list.queen<-poly2nb(chi.poly, queen=TRUE)
 W<-nb2listw(list.queen, style="W", zero.policy=TRUE)
 W
 ```
+W represents our weights.
 
-We can plot our spatial autocorrelation on our polygon.
+We can plot our spatial autocorrelation on our polygon to see if we have our neighbors all connected.
 
 ```{r}
 plot(W,chi.poly$geometry)
 ```
 
+##Spatial Regression Models
+
+The following lists types of regression models that we can use to correct our models for this spatial autocorrelation to try and get more accurate measures of the marginal effects (if any) of our explanatory variables on the variable of concern (violent crime in Chicago).
+
+#The Spatial Autoregression Model (SARs):
+
+Spatial lag dependence in a regression setting can be modeled similar to an autoregressive process in time series.
+
+$$ y= \rho Wy+ X \beta + \epsilon $$
+The presence of the term $$Wy$$ induces a nonzero correlation with the error term, similar to the presence of an endogenous variable, but different from the time series context. Contrary to time series, $$[Wy]i$$ is always correlated with $$ϵi$$ irrespective of the structure of the errors. This implies that OLS estimates in the non spatial model will be biased and inconsistent. (Anselin and Bera (1998))
+
+#Spatial Error Models (SEMs)
+
+Another way to model spatial autocorrelation in a regression model is to specify the autoregressive process in the error term:
+
+$$y=  X \beta + \epsilon$$
+with
+$$\epsilon = \lambda W \epsilon + u$$
+
+If this is the “true” form of spatial dependence OLS estimates will be unbiased but inefficient.
+
+##Testing for Spatial Autocorrelation
+
+There are multiple tests for testing the presence of spatial autocorrelation. We will test using two options: Moran’s I test and LaGrangian Multiplier tests.
+
+#Moran Test
+
+Moran’s I test was originally developed as a two-dimensional analog of Durbin-Watson’s test
+$$\begin{equation}
+I = \left( \frac{e'We}{e'e}  \right)
+\end{equation}$$
+
+where $$e=y−Xβ$$ is a vector of OLS residuals $$\beta= (X'X)^{-1} X'y$$, $$W$$ is the row standardized spatial weights matrix. (For more detail see Anselin and Bera (1998))
+
+To perform a Moran test on our data we need two inputs, an lm regression object (estimated in the OLS section) and the spatial weight matrix.
+
+Let's try running a Moran's test.
+
+```{r}
+moran.lm<-lm.morantest(chi.ols, W, alternative="two.sided")
+print(moran.lm)
+```
+
+The computation of the statistic is relative to a given choice of the spatial weights W. Different specifications of the weights matrix will give different results. On your own (results not shown in this lab) try again using the rook contiguity to see how your results change.
+
+#Lagrange Multiplier Test
+
+A nice feature of Moran’s I test is that it has high power against a wide range of alternatives (Anselin and Bera (1998)). However, it does not guide us in the selection of alternative models. On the other hand, Lagrange Multiplier test specifies the alternative hypothesis which will help us with the task. The LM tests for spatial dependence are included in the lm.LMtests function and include as alternatives the presence of a spatial lag and the presence of a spatial lag in the error term. Both tests, as well as their robust forms are included in the lm.LMtests function. To call them we use the option test="all". Again, a regression object and a spatial list (the spatial weight matrix) object must be passed as arguments:
+
+Let's try a LaGrangian Multiplier test
+```{r}
+LM<-lm.LMtests(chi.ols, W, test="all")
+print(LM)
+```
+
+Since LMerr and LMlag are both statistically significant different from zero, we need to look at their robust counterparts. These robust counterparts are actually robust to the presence of the other “type” of autocorrelation. The robust version of the tests suggest that the lag model is the more likely alternative.
+
+Now let's try to run our regression models.
+
+The estimation of the SAR model can be approached in two ways. One way is to assume normality of the error term and use maximum likelihood. This is achieved in R with the function lagsarlm.
+
+Running a SAR model
+```{r}
+sar.chi<-lagsarlm(chi.poly$violent~chi.poly$est_fcs_rt+chi.poly$bls_unemp, data=chi.poly, W)
+summary(sar.chi)
+```
+
+Another way is to use 2SLS using the function stsls.  This is basically running the model with instruments.
+
+Running a 2SLS model
+```{r}
+sar2sls.chi<-stsls(chi.poly$violent~chi.poly$est_fcs_rt+chi.poly$bls_unemp, data=chi.poly, W)
+summary(sar2sls.chi)
+```
+
+We then can compare the residuals of the OLS regression to the residuals of the spatial autoregressive model. To access the residuals for the OLS model and the SAR model use the following code:
+
+Compare residuals of OLS and Spatial autocorrelative model
+```{r}
+chi.poly$chi.ols.res<-resid(chi.ols) #residuals ols
+
+chi.poly$chi.sar.res<-resid(sar.chi) #residual sar
+```
+
+Mapping the variation in our residuals between OLS and Spatial autocorrelative Model
+```{r}
+colurrr <- brewer.pal(11, "RdBu")
+plot(chi.poly["chi.ols.res"])
+plot(chi.poly["chi.sar.res"])
+```
+
+#Measuring Impacts
+
+Note that the presence of the spatial weights matrix makes marginal effects richer and slightly more complicated than in the “traditional” OLS model. We’ll have three impact measures suggested by Pace and LeSage (2009) and is done in R with the function impacts
+
+Measuring Marginal impacts
+```{r}
+impacts(sar.chi, listw=W)
+```
+
+The direct impact refers to average total impact of a change of an independent variable on the dependent fore each observation, i.e., $$n^{-1}\sum_{i=1}^{n}\frac{\partial E(y_{i})}{\partial X_{i}}$$, the indirect impact which is the sum of the impact produced on one single observation by all other observations and the impact of one observation on all the other. The total is the summation of the two
+
+Let's try estimating the spatial error model now.  There are two approaches.
+
+First, we can use Maximum Likelihood as before, with the function errorsarlm.
+
+Spatial Error Model using Maximum Likelihood
+```{r}
+errorsalm.chi<-errorsarlm(chi.poly$violent~chi.poly$est_fcs_rt+chi.poly$bls_unemp, data=chi.poly, W)
+summary(errorsalm.chi)
+```
+
+We can once again plot our residuals.
+
+```{r}
+chi.poly$chi.errml.res<-resid(errorsalm.chi) #residual sem
+plot(chi.poly["chi.errml.res"])
+```
+
+A second approach is use Feasible Generalized Least Squares (GLS) with the function GMerrorsar. The function is:
+
+FGLS (Feasible Generalized Least Squares)
+```{r}
+fgls.chi<-GMerrorsar(chi.poly$violent~chi.poly$est_fcs_rt+chi.poly$bls_unemp, data=chi.poly, W)
+summary(fgls.chi)
+```
+
+We can import our residuals into an interactive map to be able to match our census tracts and residual values with the locations they represent for easier connection.
+
+```{r}
+pal2 <- colorQuantile(
+  palette  = "GnBu",
+  domain = chi.poly$chi.sar.res)
+
+map2 <- leaflet(chi.poly)
+
+map2 %>%
+  addPolygons(stroke = FALSE, smoothFactor = 0.2, fillOpacity = 0.7,
+              color = ~pal2(chi.sar.res)) %>% addTiles()
+```
+
+Finally, if we look at the likelihood for the SAR model and SEM model we see that we achieve a lower value for the SAR model that was the model favored by the LMtests. The residuals plot presented above still show some presence of spatial autocorrelation. It’s very likely that the a more complete model needs to be specified. The literature has expanded to more complex models. The reader is encouraged to read Anselin and Bera (1998), Arbia (2014) and Pace and LeSage (2009) for more detailed and complete introductions on Spatial Econometrics.
